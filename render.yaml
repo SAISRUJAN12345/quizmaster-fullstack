@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: quizmaster-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/quizzes
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
