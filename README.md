@@ -1,88 +1,128 @@
-# QuizMaster — Full-stack Online Quiz Application
+# 🎓 QuizMaster Academy Portal (Full-Stack React.js + Spring Boot)
 
-React + Vite frontend, Java 21 / Spring Boot REST API, MySQL persistence, JWT authentication, student result history and administrator quiz management.
+An interactive, production-ready online assessment portal built with **React.js** and **Java Spring Boot REST API**, backed by an **in-memory H2 database**.
 
-## Included features
-- Student registration and login; BCrypt password hashing and JWT authentication.
-- Admin account seeded from environment variables.
-- Student dashboard with published quizzes.
-- Timed multiple-choice quiz, automatic scoring on the backend, no correct answers exposed by the question endpoint.
-- Persistent quiz attempts and student result history.
-- Admin quiz creation, question creation, publish flag, quiz listing and deletion.
-- Responsive React interface.
-- Dockerfile and Render deployment blueprint; Vercel SPA configuration.
+---
 
-## Local setup
-Requirements: Java 21, Maven 3.9+, Node.js 20+, MySQL 8.
+## 🌟 Feature Tour & Portal Modules
 
-1. Create database: `CREATE DATABASE online_quiz;`
-2. Edit `backend/src/main/resources/application.properties`. Set `spring.datasource.password` to your local MySQL password. Change the JWT secret and admin credentials for any shared environment.
-3. Start API:
-   ```bash
-   cd backend
-   mvn spring-boot:run
-   ```
-   API: `http://localhost:8080`
-4. In a second terminal:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-   Open the Vite URL, normally `http://localhost:5173`.
+### 1. 🏠 Landing Page & Learning Tracks
+- **Track Selection**:
+  - **☕ Java & Spring Boot Mastery** (Collections, JVM Architecture, REST Annotations, JPA `@Id`)
+  - **⚛️ Modern React & Web UI** (`useState`, `useEffect`, Virtual DOM Diffing, Flexbox)
+  - **💾 Databases & REST Architecture** (ACID Atomicity, In-memory H2, HTTP 201, Idempotency)
+  - **🏆 Full-Stack Challenge** (Comprehensive assessment across all 12 questions)
+- Metric highlights: 12 curated questions, 3 learning tracks, real-time server scoring.
 
-### Default seeded administrator (local development only)
-- Email: `admin@quizmaster.com`
-- Password: `ChangeMe123!`
+### 2. ✍️ Active Quiz Experience
+- **Server-Side Security**: Question retrieval (`GET /api/quiz/questions`) omits correct answers and explanations.
+- **Interactive Timer**: 5-minute track timer / 10-minute exam timer with visual warning (<60s) and critical alert (<30s).
+- **Flexible View Modes**:
+  - **All-in-One**: Scroll and answer all questions in a continuous view.
+  - **Step-by-Step Focus**: Answer one question at a time with Prev / Next navigation.
+- **Question Flagging & Navigation**: Bookmark questions for review with a dedicated question pill ribbon (Pending, Answered, Flagged).
+- **Submission Protection**: Confirmation warning modal before submitting if unanswered questions remain.
 
-Change these in `application.properties` before sharing/deploying. On hosted deployment, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` environment variables. The seeded admin is created only if that email does not already exist.
+### 3. 📊 Scorecard & Pedagogical Review
+- **Immediate Server Evaluation**: Spring Boot calculates score, percentage, pass/fail status, and feedback messages.
+- **Detailed Solution Inspector**:
+  - Filter solutions by **All**, **Correct Only (✓)**, or **Incorrect Only (✗)**.
+  - Visual color cards showing student's answer vs the official solution.
+  - Pedagogical explanation box for each question.
+- **Actions**: Retake quiz anytime or browse other learning tracks.
 
-## API routes
-Public:
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/quizzes`
-- `GET /api/quizzes/{id}/questions`
+### 4. 🏆 Student Leaderboard
+- Real-time ranking table displaying top scores, accuracy percentage bars, completion times, and student badges.
+- Automatically inserts the student's recent score with a highlighted ⭐ **Verified Score** row.
 
-Authenticated student:
-- `GET /api/me`
-- `POST /api/quizzes/{id}/submit`
-- `GET /api/attempts/my`
+### 5. 📈 Assessment History & Analytics
+- Persisted locally in `localStorage`.
+- Summary statistics: Total exams taken, average accuracy, pass rate, and total passed certifications.
+- Full log of past quiz attempts with timestamps, categories, and score breakdowns.
 
-Admin:
-- `GET /api/admin/quizzes`
-- `POST /api/admin/quizzes`
-- `PUT /api/admin/quizzes/{id}`
-- `DELETE /api/admin/quizzes/{id}`
+### 6. 🌙 Dark & Light Themes
+- Smooth theme toggle stored in preferences.
 
-## Deploy
-You must create your own hosting accounts and connect this project to a GitHub repository; this archive cannot be deployed into your accounts automatically.
+---
 
-### Suggested hosting combination
-- MySQL: Railway MySQL (create a database and copy its connection values).
-- Backend: Render Web Service using the included `render.yaml` / Dockerfile.
-- Frontend: Vercel static site using the `frontend` directory.
+## 🛠️ Technology Stack
 
-### Backend environment variables
-Set on Render:
-- `DB_URL`: JDBC URL, for example `jdbc:mysql://HOST:PORT/DB_NAME?useSSL=true&serverTimezone=UTC`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `JWT_SECRET`: long random secret (at least 32 characters)
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `FRONTEND_URL`: exact deployed Vercel origin, e.g. `https://your-quiz-app.vercel.app`
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 18, Vite 5, Modern CSS (Variables, Flexbox/Grid, Dark Mode) |
+| **Backend** | Java 17 (Temurin), Spring Boot 3.3.5, Spring MVC, Spring Data JPA |
+| **Database** | In-Memory H2 Database (`jdbc:h2:mem:quizdb`) with H2 Console |
+| **Build Tools** | Maven 3.9.9, Node.js v24, npm 11 |
 
-### Frontend environment variable
-Set on Vercel:
-- `VITE_API_URL`: deployed backend origin, e.g. `https://quizmaster-api.onrender.com` (no trailing slash).
+---
 
-Build settings for Vercel:
-- Root Directory: `frontend`
-- Build Command: `npm run build`
-- Output Directory: `dist`
+## 📁 Project Structure
 
-After changing environment variables, redeploy both services. Configure your MySQL provider to accept connections from the backend host. The exact host/port/SSL settings depend on your MySQL provider.
+```text
+online-quiz-app/
+├── backend/
+│   ├── pom.xml                                  # Maven dependencies (Spring Boot, JPA, H2)
+│   ├── src/main/java/com/quiz/
+│   │   ├── QuizApplication.java                # Spring Boot entry point
+│   │   ├── config/
+│   │   │   ├── CorsConfig.java                 # CORS configuration
+│   │   │   └── DataInitializer.java            # Seeds 12 sample quiz questions
+│   │   ├── controller/
+│   │   │   └── QuizController.java             # REST API (/api/quiz/*)
+│   │   ├── dto/
+│   │   │   ├── AnswerSubmissionDto.java        # Single answer DTO
+│   │   │   ├── QuestionResponseDto.java        # Client question DTO (zero leakage)
+│   │   │   ├── QuestionResultDto.java          # Evaluated answer with explanation
+│   │   │   ├── QuizResultDto.java              # Total score and summary DTO
+│   │   │   └── QuizSubmissionDto.java          # Submission payload DTO
+│   │   ├── model/
+│   │   │   └── Question.java                   # JPA Entity with category & difficulty
+│   │   ├── repository/
+│   │   │   └── QuestionRepository.java         # Spring Data JPA Repository
+│   │   └── service/
+│   │       └── QuizService.java                # Scoring, category filtering & evaluation
+│   └── src/main/resources/
+│       └── application.properties              # Port 8081, H2 configuration
+├── frontend/
+│   ├── package.json                            # React & Vite dependencies
+│   ├── vite.config.js                          # Vite server + proxy to port 8081
+│   ├── index.html                              # Web app HTML template
+│   └── src/
+│       ├── main.jsx                            # React bootstrap
+│       ├── App.jsx                             # Main portal state & tab router
+│       ├── App.css                             # Light/Dark design system & responsive layout
+│       └── components/
+│           ├── Navbar.jsx                      # Navigation, branding & theme toggle
+│           ├── HomeHero.jsx                    # Hero section & statistics
+│           ├── CategoryGrid.jsx                # Track selection cards
+│           ├── QuizTimer.jsx                   # Countdown timer component
+│           ├── QuestionCard.jsx                # Question selection & solution review
+│           ├── ProgressBar.jsx                 # Question pill navigation & progress
+│           ├── ScoreSummary.jsx                # Scorecard, filters & retake actions
+│           ├── Leaderboard.jsx                 # Academy student leaderboard
+│           └── HistoryView.jsx                 # Past attempts analytics
+└── README.md
+```
 
-## Security / production notes
-This is a complete academic project starter, but review it before production use. The quiz countdown is enforced in the browser only; add server-side attempt start/deadline enforcement for high-stakes exams. Add rate limiting, email verification/password reset, audit logging, backups, monitoring and HTTPS policies before a public commercial launch. The admin seed credentials must be changed immediately. Never commit secrets or database passwords.
+---
+
+## 🚀 Running the Portal Locally
+
+Both services run concurrently:
+
+### 1. Spring Boot Backend (Port 8081)
+```bash
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+cd backend
+mvn spring-boot:run
+```
+- API Base: `http://localhost:8081/api/quiz/questions`
+- H2 Console: `http://localhost:8081/h2-console` (JDBC URL: `jdbc:h2:mem:quizdb`, User: `sa`, Password: empty)
+
+### 2. React Frontend (Port 5173)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open your browser at `http://localhost:5173` (or `http://127.0.0.1:5173`).

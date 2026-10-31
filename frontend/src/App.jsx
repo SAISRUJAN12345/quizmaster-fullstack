@@ -1,30 +1,501 @@
-import{useEffect,useState}from'react';import{api}from'./api';
-const blankQ=()=>({text:'',optionA:'',optionB:'',optionC:'',optionD:'',correctOption:'A'});
-export default function App(){
- const[user,setUser]=useState(()=>{try{return JSON.parse(localStorage.getItem('qm_user'))}catch{return null}});
- const[page,setPage]=useState('home'),[quizzes,setQuizzes]=useState([]),[attempts,setAttempts]=useState([]),[active,setActive]=useState(null),[questions,setQuestions]=useState([]),[answers,setAnswers]=useState({}),[result,setResult]=useState(null),[seconds,setSeconds]=useState(600),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState('');
- const[auth,setAuth]=useState({fullName:'',email:'',password:''}),[mode,setMode]=useState('login');
- const[form,setForm]=useState({title:'',description:'',durationMinutes:10,published:true,questions:[blankQ()]});
- const isAdmin=user?.role==='ADMIN';
- async function load(){try{setQuizzes(await api(isAdmin?'/admin/quizzes':'/quizzes'));}catch(e){setError(e.message)}}
- async function loadAttempts(){try{setAttempts(await api('/attempts/my'))}catch(e){setError(e.message)}}
- useEffect(()=>{if(user){load();loadAttempts()}else{api('/quizzes').then(setQuizzes).catch(e=>setError(e.message))}},[user]);
- useEffect(()=>{if(!active||result)return;if(seconds<=0){finish();return}const t=setTimeout(()=>setSeconds(s=>s-1),1000);return()=>clearTimeout(t)},[active,result,seconds]);
- async function authenticate(e){e.preventDefault();setBusy(true);setError('');try{const data=await api(`/auth/${mode}`,{method:'POST',body:JSON.stringify(auth)});localStorage.setItem('qm_token',data.token);localStorage.setItem('qm_user',JSON.stringify(data));setUser(data);setPage('home');setSuccess('Welcome, '+data.fullName+'!')}catch(e){setError(e.message)}finally{setBusy(false)}}
- function logout(){localStorage.removeItem('qm_token');localStorage.removeItem('qm_user');setUser(null);setActive(null);setResult(null);setPage('home')}
- async function start(q){if(!user){setError('Please sign in to start a quiz.');setPage('account');return}try{setError('');const qs=await api(`/quizzes/${q.id}/questions`);setActive(q);setQuestions(qs);setAnswers({});setResult(null);setSeconds(q.durationMinutes*60);setPage('play')}catch(e){setError(e.message)}}
- async function finish(){if(!active||result)return;try{const r=await api(`/quizzes/${active.id}/submit`,{method:'POST',body:JSON.stringify({answers})});setResult(r);setPage('result');loadAttempts()}catch(e){setError(e.message)}}
- function updateQuestion(i,key,value){setForm(f=>({...f,questions:f.questions.map((q,n)=>n===i?{...q,[key]:value}:q)}))}
- async function saveQuiz(e){e.preventDefault();try{await api('/admin/quizzes',{method:'POST',body:JSON.stringify(form)});setForm({title:'',description:'',durationMinutes:10,published:true,questions:[blankQ()]});setSuccess('Quiz created successfully.');load()}catch(e){setError(e.message)}}
- async function deleteQuiz(id){if(!confirm('Delete this quiz?'))return;try{await api(`/admin/quizzes/${id}`,{method:'DELETE'});setSuccess('Quiz deleted.');load()}catch(e){setError(e.message)}}
- const timer=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
- return <div className="shell"><header><a className="brand" onClick={()=>setPage('home')}><b>Q</b> Quiz<span>Master</span></a><nav><button onClick={()=>setPage('home')}>Quizzes</button>{user&&<button onClick={()=>{loadAttempts();setPage('history')}}>My results</button>}{isAdmin&&<button onClick={()=>setPage('admin')}>Admin</button>}{user?<><span className="user-pill">{user.fullName}</span><button className="nav-cta" onClick={logout}>Sign out</button></>:<button className="nav-cta" onClick={()=>setPage('account')}>Sign in</button>}</nav></header>
- <main>{error&&<div className="alert error">{error}<button onClick={()=>setError('')}>×</button></div>}{success&&<div className="alert success">{success}<button onClick={()=>setSuccess('')}>×</button></div>}
- {page==='home'&&<><section className="hero"><div className="eyebrow">LEARN · PRACTICE · ACHIEVE</div><h1>Make every question<br/><em>count.</em></h1><p>Sharpen your skills with focused quizzes. Take a challenge, see your score, and keep improving.</p><div className="hero-actions"><button className="primary" onClick={()=>document.getElementById('quiz-list')?.scrollIntoView({behavior:'smooth'})}>Explore quizzes ↓</button><span>{user?`Welcome back, ${user.fullName}`:'Sign in to save your results'}</span></div></section><section id="quiz-list" className="section"><div className="section-title"><div><div className="eyebrow">PICK YOUR CHALLENGE</div><h2>Available quizzes</h2></div><span className="muted">{quizzes.length} quizzes</span></div><div className="grid">{quizzes.filter(q=>q.published!==false).map((q,i)=><article className="quiz-card" key={q.id}><div className="card-head"><span className="symbol">{['⌘','◈','✳'][i%3]}</span><span className="chip">QUIZ</span></div><h3>{q.title}</h3><p>{q.description}</p><div className="meta"><span>▤ {q.questionCount} questions</span><span>◷ {q.durationMinutes} min</span></div><button className="card-button" onClick={()=>start(q)}>Start quiz <b>→</b></button></article>)}</div>{!quizzes.length&&<p className="empty">No published quizzes yet. Please check back soon.</p>}</section></>}
- {page==='account'&&<section className="account"><div className="eyebrow">YOUR QUIZ JOURNEY STARTS HERE</div><h2>{mode==='login'?'Welcome back':'Create your account'}</h2><p>Sign in to take quizzes and save your results.</p><form onSubmit={authenticate}>{mode==='register'&&<label>Full name<input required value={auth.fullName} onChange={e=>setAuth({...auth,fullName:e.target.value})} placeholder="Your name"/></label>}<label>Email address<input type="email" required value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})} placeholder="you@example.com"/></label><label>Password<input type="password" minLength="8" required value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})} placeholder="At least 8 characters"/></label><button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Sign in':'Create account'}</button></form><button className="text-button" onClick={()=>setMode(mode==='login'?'register':'login')}>{mode==='login'?"Don't have an account? Register":"Already registered? Sign in"}</button></section>}
- {page==='play'&&active&&<section className="play"><div className="play-head"><div><div className="eyebrow">QUIZ IN PROGRESS</div><h2>{active.title}</h2><p>{Object.keys(answers).length} of {questions.length} answered</p></div><div className={`timer ${seconds<60?'urgent':''}`}><small>TIME LEFT</small><b>{timer}</b></div></div>{questions.map((q,i)=><article className="question" key={q.id}><div className="eyebrow">QUESTION {i+1} / {questions.length}</div><h3>{q.text}</h3><div className="options">{['A','B','C','D'].map(k=><button key={k} className={answers[q.id]===k?'option selected':'option'} onClick={()=>setAnswers(a=>({...a,[q.id]:k}))}><b>{k}</b>{q[`option${k}`]}</button>)}</div></article>)}<div className="submit-line"><span>Review your answers before submitting.</span><button className="primary" onClick={finish}>Submit quiz →</button></div></section>}
- {page==='result'&&result&&<section className="result"><div className="eyebrow">QUIZ COMPLETED</div><h2>Your result</h2><div className="score">{result.percentage}<small>%</small></div><span className={`status ${result.status==='PASS'?'pass':'fail'}`}>{result.status}</span><h3>{result.quizTitle}</h3><div className="stats"><div><b>{result.totalQuestions}</b><span>Total</span></div><div><b>{result.correctAnswers}</b><span>Correct</span></div><div><b>{result.wrongAnswers}</b><span>Wrong / skipped</span></div></div><button className="primary" onClick={()=>{setPage('home');setActive(null);setResult(null);load()}}>Back to quizzes</button></section>}
- {page==='history'&&<section className="section"><div className="eyebrow">YOUR PROGRESS</div><h2>My quiz results</h2><div className="history">{attempts.map(a=><div className="history-row" key={a.id}><div><b>{a.quizTitle}</b><small>{new Date(a.submittedAt).toLocaleString()}</small></div><strong>{a.percentage}%</strong><span className={a.status==='PASS'?'pass':'fail'}>{a.status}</span></div>)}</div>{!attempts.length&&<p className="empty">You have not completed any quizzes yet.</p>}</section>}
- {page==='admin'&&isAdmin&&<section className="section admin"><div className="eyebrow">ADMINISTRATION</div><h2>Create a quiz</h2><form onSubmit={saveQuiz} className="admin-form"><label>Quiz title<input required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label><label>Description<textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label>Duration (minutes)<input type="number" min="1" max="240" value={form.durationMinutes} onChange={e=>setForm({...form,durationMinutes:Number(e.target.value)})}/></label><label className="check"><input type="checkbox" checked={form.published} onChange={e=>setForm({...form,published:e.target.checked})}/> Publish quiz</label><h3>Questions</h3>{form.questions.map((q,i)=><div className="question-editor" key={i}><div className="editor-head"><b>Question {i+1}</b>{form.questions.length>1&&<button type="button" className="remove" onClick={()=>setForm(f=>({...f,questions:f.questions.filter((_,n)=>n!==i)}))}>Remove</button>}</div><label>Question text<input required value={q.text} onChange={e=>updateQuestion(i,'text',e.target.value)}/></label><div className="editor-grid">{['A','B','C','D'].map(k=><label>Option {k}<input required value={q[`option${k}`]} onChange={e=>updateQuestion(i,`option${k}`,e.target.value)}/></label>)}</div><label>Correct option<select value={q.correctOption} onChange={e=>updateQuestion(i,'correctOption',e.target.value)}>{['A','B','C','D'].map(k=><option value={k}>{k}</option>)}</select></label></div>)}<button type="button" className="secondary" onClick={()=>setForm(f=>({...f,questions:[...f.questions,blankQ()]}))}>+ Add question</button><button className="primary">Save quiz</button></form><h2 className="manage-title">Manage quizzes</h2>{quizzes.map(q=><div className="manage-row" key={q.id}><span><b>{q.title}</b><small>{q.questionCount} questions</small></span><button className="remove" onClick={()=>deleteQuiz(q.id)}>Delete</button></div>)}</section>}
- </main><footer><b>Q QuizMaster</b><span>Built for curious minds · Online Quiz Application</span></footer></div>
+import React, { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import HomeHero from './components/HomeHero';
+import CategoryGrid from './components/CategoryGrid';
+import QuestionCard from './components/QuestionCard';
+import ProgressBar from './components/ProgressBar';
+import ScoreSummary from './components/ScoreSummary';
+import QuizTimer from './components/QuizTimer';
+import Leaderboard from './components/Leaderboard';
+import HistoryView from './components/HistoryView';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('home');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('qm_dark_mode') === 'true';
+  });
+
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState({});
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // View mode in quiz: 'ALL' (scroll all questions) vs 'STEP' (one question at a time)
+  const [viewMode, setViewMode] = useState('ALL');
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Review filter mode: 'ALL', 'CORRECT', 'INCORRECT'
+  const [filterMode, setFilterMode] = useState('ALL');
+
+  // Attempt history persisted in localStorage
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('qm_quiz_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Toggle Dark Mode class on <html> / <body>
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('qm_dark_mode', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('qm_dark_mode', 'false');
+    }
+  }, [darkMode]);
+
+  // Fetch questions for selected category
+  const fetchQuestions = async (category = selectedCategory) => {
+    setLoading(true);
+    setError(null);
+    setAnswers({});
+    setFlaggedQuestions({});
+    setResult(null);
+    setCurrentStep(0);
+
+    try {
+      const url =
+        category && category !== 'ALL'
+          ? `/api/quiz/questions?category=${encodeURIComponent(category)}`
+          : '/api/quiz/questions';
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load questions (Status: ${response.status})`);
+      }
+      const data = await response.json();
+      setQuestions(data);
+    } catch (err) {
+      console.error('Error fetching questions:', err);
+      setError(
+        'Could not connect to the backend server. Please verify that the Spring Boot API is running on port 8081.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Start a specific category quiz
+  const handleSelectCategory = (cat) => {
+    setSelectedCategory(cat);
+    setActiveTab('quiz');
+    fetchQuestions(cat);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Select an option for a question
+  const handleSelectOption = (questionId, optionIndex) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: optionIndex,
+    }));
+  };
+
+  // Toggle flagged question
+  const handleToggleFlag = (questionId) => {
+    setFlaggedQuestions((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+  };
+
+  // Check unanswered before submitting
+  const handleSubmitAttempt = (e) => {
+    if (e) e.preventDefault();
+
+    const unansweredCount = questions.length - Object.keys(answers).length;
+    if (unansweredCount > 0) {
+      setShowConfirmModal(true);
+    } else {
+      executeSubmit();
+    }
+  };
+
+  // Send answers to Spring Boot backend
+  const executeSubmit = async () => {
+    setShowConfirmModal(false);
+    setSubmitting(true);
+    setError(null);
+
+    const payload = {
+      answers: questions.map((q) => ({
+        questionId: q.id,
+        selectedOption: answers[q.id] !== undefined ? answers[q.id] : null,
+      })),
+    };
+
+    try {
+      const response = await fetch('/api/quiz/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit quiz (Status: ${response.status})`);
+      }
+
+      const resultData = await response.json();
+      setResult(resultData);
+
+      // Save to attempt history
+      const newRecord = {
+        timestamp: new Date().toLocaleString(),
+        category: selectedCategory === 'ALL' ? 'Full-Stack Challenge' : selectedCategory,
+        score: resultData.score,
+        totalQuestions: resultData.totalQuestions,
+        percentage: resultData.percentage,
+        passed: resultData.passed,
+      };
+
+      const updatedHistory = [newRecord, ...history];
+      setHistory(updatedHistory);
+      localStorage.setItem('qm_quiz_history', JSON.stringify(updatedHistory));
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('Error submitting quiz:', err);
+      setError('Failed to submit answers. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRetakeQuiz = () => {
+    setAnswers({});
+    setFlaggedQuestions({});
+    setResult(null);
+    setCurrentStep(0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('qm_quiz_history');
+  };
+
+  const answeredCount = Object.keys(answers).length;
+  const unansweredCount = questions.length - answeredCount;
+
+  // Filtered questions for post-submission review
+  const getVisibleQuestions = () => {
+    if (!result) return questions;
+    if (filterMode === 'CORRECT') {
+      return questions.filter((q) => {
+        const r = result.results?.find((item) => item.questionId === q.id);
+        return r?.isCorrect;
+      });
+    }
+    if (filterMode === 'INCORRECT') {
+      return questions.filter((q) => {
+        const r = result.results?.find((item) => item.questionId === q.id);
+        return !r?.isCorrect;
+      });
+    }
+    return questions;
+  };
+
+  const visibleQuestions = getVisibleQuestions();
+
+  return (
+    <div className="portal-layout">
+      {/* Navigation Bar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+
+      {/* Main Container */}
+      <main className="portal-main">
+        {/* --- TAB 1: HOME & TRACKS --- */}
+        {activeTab === 'home' && (
+          <div className="tab-home-fade">
+            <HomeHero onSelectCategory={handleSelectCategory} />
+            <CategoryGrid
+              onSelectCategory={handleSelectCategory}
+              selectedCategory={selectedCategory}
+            />
+          </div>
+        )}
+
+        {/* --- TAB 2: ACTIVE QUIZ --- */}
+        {activeTab === 'quiz' && (
+          <div className="tab-quiz-fade">
+            {/* Quiz Sub-header Banner */}
+            <div className="quiz-header-banner">
+              <div className="banner-left">
+                <span className="track-indicator">
+                  Active Track: <strong>{selectedCategory === 'ALL' ? 'Full-Stack Challenge' : selectedCategory}</strong>
+                </span>
+                <button
+                  type="button"
+                  className="btn-switch-track-text"
+                  onClick={() => setActiveTab('home')}
+                >
+                  Change Track
+                </button>
+              </div>
+
+              <div className="banner-right">
+                {!result && questions.length > 0 && (
+                  <QuizTimer
+                    initialMinutes={selectedCategory === 'ALL' ? 10 : 5}
+                    onExpire={executeSubmit}
+                    isPaused={submitting || !!result}
+                  />
+                )}
+                {!result && questions.length > 0 && (
+                  <div className="view-toggle">
+                    <button
+                      type="button"
+                      className={`toggle-opt ${viewMode === 'ALL' ? 'active' : ''}`}
+                      onClick={() => setViewMode('ALL')}
+                      title="Show all questions in one page"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-opt ${viewMode === 'STEP' ? 'active' : ''}`}
+                      onClick={() => setViewMode('STEP')}
+                      title="Show one question at a time"
+                    >
+                      Step
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {loading && (
+              <div className="state-card loading-card">
+                <div className="spinner"></div>
+                <p className="state-text">Loading {selectedCategory} questions from Spring Boot server...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="state-card error-card">
+                <div className="error-icon">⚠️</div>
+                <h3 className="error-title">Connection Error</h3>
+                <p className="error-desc">{error}</p>
+                <button
+                  type="button"
+                  className="btn-retry"
+                  onClick={() => fetchQuestions(selectedCategory)}
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && questions.length === 0 && (
+              <div className="state-card empty-card">
+                <p className="state-text">No questions found for this track.</p>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => handleSelectCategory('ALL')}
+                >
+                  Load All Questions
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && questions.length > 0 && (
+              <div className="quiz-flow">
+                {/* Score Summary if submitted */}
+                {result && (
+                  <ScoreSummary
+                    result={result}
+                    category={selectedCategory === 'ALL' ? 'Full-Stack Challenge' : selectedCategory}
+                    onRetake={handleRetakeQuiz}
+                    onSelectAnotherTrack={() => setActiveTab('home')}
+                    filterMode={filterMode}
+                    setFilterMode={setFilterMode}
+                  />
+                )}
+
+                {/* Progress bar with question jumping */}
+                <ProgressBar
+                  questions={questions}
+                  answers={answers}
+                  flaggedQuestions={flaggedQuestions}
+                  results={result}
+                  currentQuestionIndex={currentStep}
+                  onJumpToQuestion={(idx) => setCurrentStep(idx)}
+                />
+
+                {/* Question Cards */}
+                <form onSubmit={handleSubmitAttempt} className="questions-form">
+                  <div className="questions-list">
+                    {viewMode === 'ALL' || result ? (
+                      // Display all visible questions
+                      visibleQuestions.map((q, idx) => {
+                        const qResult = result?.results?.find(
+                          (r) => r.questionId === q.id
+                        );
+                        return (
+                          <QuestionCard
+                            key={q.id}
+                            question={q}
+                            index={idx}
+                            total={questions.length}
+                            selectedOption={answers[q.id]}
+                            onSelectOption={handleSelectOption}
+                            isFlagged={!!flaggedQuestions[q.id]}
+                            onToggleFlag={handleToggleFlag}
+                            result={qResult}
+                          />
+                        );
+                      })
+                    ) : (
+                      // Single Question Step Mode
+                      <div className="single-step-view">
+                        <QuestionCard
+                          question={questions[currentStep]}
+                          index={currentStep}
+                          total={questions.length}
+                          selectedOption={answers[questions[currentStep].id]}
+                          onSelectOption={handleSelectOption}
+                          isFlagged={!!flaggedQuestions[questions[currentStep].id]}
+                          onToggleFlag={handleToggleFlag}
+                          result={null}
+                        />
+
+                        <div className="step-navigation-bar">
+                          <button
+                            type="button"
+                            className="btn-step-nav"
+                            disabled={currentStep === 0}
+                            onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
+                          >
+                            ← Previous
+                          </button>
+                          <span className="step-counter">
+                            Question {currentStep + 1} of {questions.length}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-step-nav"
+                            disabled={currentStep === questions.length - 1}
+                            onClick={() => setCurrentStep((prev) => Math.min(questions.length - 1, prev + 1))}
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit Quiz Action Banner */}
+                  {!result && (
+                    <div className="submit-bar">
+                      <div className="submit-info">
+                        <strong>{answeredCount}</strong> of <strong>{questions.length}</strong> questions answered
+                        {unansweredCount > 0 && (
+                          <span className="unanswered-warning">
+                            ({unansweredCount} remaining)
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        className="btn-submit-quiz"
+                        disabled={submitting}
+                      >
+                        {submitting ? 'Submitting...' : 'Submit Quiz 🚀'}
+                      </button>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB 3: LEADERBOARD --- */}
+        {activeTab === 'leaderboard' && (
+          <Leaderboard
+            recentAttempt={history[0]}
+            onTakeQuiz={() => {
+              setActiveTab('quiz');
+              if (questions.length === 0) fetchQuestions('ALL');
+            }}
+          />
+        )}
+
+        {/* --- TAB 4: MY HISTORY --- */}
+        {activeTab === 'history' && (
+          <HistoryView
+            history={history}
+            onClearHistory={handleClearHistory}
+            onTakeQuiz={() => {
+              setActiveTab('quiz');
+              if (questions.length === 0) fetchQuestions('ALL');
+            }}
+          />
+        )}
+      </main>
+
+      {/* Confirmation Modal for Unanswered Questions */}
+      {showConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-icon">⚠️</span>
+              <h3>Unanswered Questions</h3>
+            </div>
+            <p className="modal-text">
+              You still have <strong>{unansweredCount}</strong> unanswered question
+              {unansweredCount > 1 ? 's' : ''}. Unanswered questions will receive 0 points.
+            </p>
+            <p className="modal-question">Are you sure you want to submit your quiz now?</p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Review Quiz
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={executeSubmit}
+              >
+                Yes, Submit Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="portal-footer">
+        <div className="footer-content">
+          <div className="footer-left">
+            <strong>QuizMaster Academy</strong> • Full-Stack Java Spring Boot & React Application
+          </div>
+          <div className="footer-right">
+            <span>Server: Spring Boot 3.3.5 (Port 8081)</span>
+            <span>Database: In-Memory H2</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }

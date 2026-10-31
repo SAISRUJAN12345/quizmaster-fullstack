@@ -1,7 +1,20 @@
-node_modules/
-dist/
-target/
-.env
-.DS_Store
-.idea/
+# Dependencies & build output
+backend/target/
+frontend/node_modules/
+frontend/dist/
+
+# Logs & temp
+*.log
+test_website.js
+
+# IDE & Editor files
 .vscode/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS specific
+.DS_Store
+Thumbs.db
